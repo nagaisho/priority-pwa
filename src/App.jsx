@@ -39,6 +39,9 @@ export default function PriorityMatrix() {
   const [drag, setDrag] = useState(null);
   const quadrantRefs = useRef({});
   const inputRef = useRef(null);
+  const [menu, setMenu] = useState(null);
+  const pressTimer = useRef(null);
+  const pressInfo = useRef(null);
 
   const [memoText, setMemoText] = useState("");
   const memoInputRef = useRef(null);
@@ -87,6 +90,15 @@ export default function PriorityMatrix() {
     freeNoteRef.current.style.height = freeNoteRef.current.scrollHeight + "px";
   }, [page, freeNote]);
 
+  useEffect(() => {
+    if (!menu) return;
+    function onDocPointerDown(e) {
+      if (!e.target.closest(".pm-item-menu")) setMenu(null);
+    }
+    window.addEventListener("pointerdown", onDocPointerDown);
+    return () => window.removeEventListener("pointerdown", onDocPointerDown);
+  }, [menu]);
+
   function addTask(e) {
     e.preventDefault();
     const trimmed = text.trim();
@@ -124,31 +136,82 @@ export default function PriorityMatrix() {
     return null;
   }
 
-  function handleDragStart(e, task) {
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setDrag({
+  function handleTaskPointerDown(e, task) {
+    const info = {
       id: task.id,
-      text: task.text,
-      x: e.clientX,
-      y: e.clientY,
-      over: findQuadrant(task.urgent, task.important).key,
-    });
+      task,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerId: e.pointerId,
+      target: e.currentTarget,
+      armed: false,
+      dragging: false,
+    };
+    pressInfo.current = info;
+    pressTimer.current = setTimeout(() => {
+      if (pressInfo.current !== info) return;
+      info.armed = true;
+      try {
+        info.target.setPointerCapture(info.pointerId);
+      } catch (err) {
+        // pointer already released; ignore
+      }
+      if (navigator.vibrate) navigator.vibrate(10);
+      setMenu({ id: task.id, x: info.startX, y: info.startY });
+    }, 450);
   }
 
-  function handleDragMove(e) {
-    if (!drag) return;
+  function handleTaskPointerMove(e) {
+    const info = pressInfo.current;
+    if (!info) return;
+    const dist = Math.hypot(e.clientX - info.startX, e.clientY - info.startY);
+    if (!info.armed) {
+      if (dist > 10) {
+        clearTimeout(pressTimer.current);
+        pressInfo.current = null;
+      }
+      return;
+    }
+    if (!info.dragging) {
+      if (dist > 10) {
+        info.dragging = true;
+        setMenu(null);
+        e.preventDefault();
+        setDrag({
+          id: info.id,
+          text: info.task.text,
+          x: e.clientX,
+          y: e.clientY,
+          over: findQuadrant(info.task.urgent, info.task.important).key,
+        });
+      }
+      return;
+    }
     e.preventDefault();
     const overKey = quadrantKeyAt(e.clientX, e.clientY);
     setDrag((d) => (d ? { ...d, x: e.clientX, y: e.clientY, over: overKey || d.over } : d));
   }
 
-  function handleDragEnd(e) {
-    if (!drag) return;
-    e.preventDefault();
-    const target = QUADRANTS.find((q) => q.key === drag.over);
-    if (target) moveTask(drag.id, target);
+  function handleTaskPointerUp(e) {
+    const info = pressInfo.current;
+    clearTimeout(pressTimer.current);
+    if (!info) return;
+    if (info.dragging) {
+      e.preventDefault();
+      setDrag((d) => {
+        const target = d && QUADRANTS.find((q) => q.key === d.over);
+        if (target) moveTask(info.id, target);
+        return null;
+      });
+    }
+    pressInfo.current = null;
+  }
+
+  function handleTaskPointerCancel() {
+    clearTimeout(pressTimer.current);
+    pressInfo.current = null;
     setDrag(null);
+    setMenu(null);
   }
 
   function addMemo(e) {
@@ -311,22 +374,28 @@ export default function PriorityMatrix() {
         }
         .pm-card-title { font-size: 12.5px; font-weight: 700; margin: 0 0 8px; }
         .pm-card-list { flex: 1; overflow-y: auto; }
-        .pm-task { padding: 6px 0; border-bottom: 1px solid var(--line); }
-        .pm-task-row { display: flex; align-items: center; gap: 6px; }
-        .pm-task-check {
-          width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line);
-          flex: none; display: flex; align-items: center; justify-content: center;
-          cursor: pointer; background: #fff; font-size: 12px;
+        .pm-task {
+          padding: 10px 2px; border-bottom: 1px solid var(--line);
+          touch-action: pan-y; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
         }
-        .pm-task-text { flex: 1; font-size: 12.5px; word-break: break-word; }
-        .pm-task-grip, .pm-task-del {
+        .pm-task-text { display: block; font-size: 14.5px; line-height: 1.4; word-break: break-word; }
+        .pm-task-grip {
           border: none; background: transparent; color: #8B8578; padding: 4px;
-          cursor: pointer; flex: none; font-size: 14px; line-height: 1;
+          cursor: grab; flex: none; font-size: 16px; line-height: 1; touch-action: none;
         }
-        .pm-task-grip { touch-action: none; cursor: grab; font-size: 16px; }
-        .pm-task-del { font-size: 16px; }
         .pm-task-dragging { opacity: 0.35; }
         .pm-empty { padding: 12px 0; font-size: 12px; color: #8B8578; text-align: center; }
+
+        .pm-item-menu {
+          position: fixed; transform: translate(-50%, -115%);
+          background: var(--ink); border-radius: 12px; overflow: hidden; z-index: 30;
+          box-shadow: 0 8px 20px rgba(0,0,0,0.3); display: flex;
+        }
+        .pm-item-menu button {
+          border: none; background: transparent; color: #F7F4EC; font-size: 13px; font-weight: 600;
+          padding: 12px 18px; cursor: pointer; white-space: nowrap;
+        }
+        .pm-item-menu button + button { border-left: 1px solid rgba(255,255,255,0.18); }
 
         .pm-card-dragover { outline: 2px dashed var(--ink); outline-offset: -2px; }
         .pm-drag-ghost {
@@ -442,27 +511,12 @@ export default function PriorityMatrix() {
                         <div
                           className={"pm-task" + (drag && drag.id === t.id ? " pm-task-dragging" : "")}
                           key={t.id}
+                          onPointerDown={(e) => handleTaskPointerDown(e, t)}
+                          onPointerMove={handleTaskPointerMove}
+                          onPointerUp={handleTaskPointerUp}
+                          onPointerCancel={handleTaskPointerCancel}
                         >
-                          <div className="pm-task-row">
-                            <div
-                              className="pm-task-check"
-                              onClick={() => completeTask(t)}
-                              role="button"
-                              tabIndex={0}
-                            />
-                            <span className="pm-task-text">{t.text}</span>
-                            <button
-                              className="pm-task-grip"
-                              onPointerDown={(e) => handleDragStart(e, t)}
-                              onPointerMove={handleDragMove}
-                              onPointerUp={handleDragEnd}
-                              onPointerCancel={handleDragEnd}
-                              aria-label="ドラッグして移動"
-                            >
-                              ⠿
-                            </button>
-                            <button className="pm-task-del" onClick={() => removeTask(t.id)}>×</button>
-                          </div>
+                          <span className="pm-task-text">{t.text}</span>
                         </div>
                       ))}
                     </div>
@@ -593,6 +647,27 @@ export default function PriorityMatrix() {
       {memoDrag && (
         <div className="pm-drag-ghost" style={{ left: memoDrag.x, top: memoDrag.y }}>
           {memoDrag.text}
+        </div>
+      )}
+      {menu && (
+        <div className="pm-item-menu" style={{ left: menu.x, top: menu.y }}>
+          <button
+            onClick={() => {
+              const t = tasks.find((x) => x.id === menu.id);
+              if (t) completeTask(t);
+              setMenu(null);
+            }}
+          >
+            履歴へ
+          </button>
+          <button
+            onClick={() => {
+              removeTask(menu.id);
+              setMenu(null);
+            }}
+          >
+            削除
+          </button>
         </div>
       )}
     </div>
