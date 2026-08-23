@@ -1,6 +1,6 @@
 {
-  "name": "優先順位ノート",
-  "short_name": "優先順位ノート",
+  "name": "整頓",
+  "short_name": "整頓",
   "description": "緊急度と重要度でタスクを整理するノート",
   "start_url": "./index.html",
   "display": "standalone",
