@@ -151,6 +151,7 @@ export default function PriorityMatrix() {
     pressTimer.current = setTimeout(() => {
       if (pressInfo.current !== info) return;
       info.armed = true;
+      info.target.style.touchAction = "none";
       try {
         info.target.setPointerCapture(info.pointerId);
       } catch (err) {
@@ -196,6 +197,7 @@ export default function PriorityMatrix() {
     const info = pressInfo.current;
     clearTimeout(pressTimer.current);
     if (!info) return;
+    if (info.armed) info.target.style.touchAction = "";
     if (info.dragging) {
       e.preventDefault();
       setDrag((d) => {
@@ -208,6 +210,8 @@ export default function PriorityMatrix() {
   }
 
   function handleTaskPointerCancel() {
+    const info = pressInfo.current;
+    if (info && info.armed) info.target.style.touchAction = "";
     clearTimeout(pressTimer.current);
     pressInfo.current = null;
     setDrag(null);
