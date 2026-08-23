@@ -85,12 +85,6 @@ export default function PriorityMatrix() {
   }, [tasks, history, memoItems, freeNote, loaded]);
 
   useEffect(() => {
-    if (page !== 2 || !freeNoteRef.current) return;
-    freeNoteRef.current.style.height = "auto";
-    freeNoteRef.current.style.height = freeNoteRef.current.scrollHeight + "px";
-  }, [page, freeNote]);
-
-  useEffect(() => {
     if (!menu) return;
     function onDocPointerDown(e) {
       if (!e.target.closest(".pm-item-menu")) setMenu(null);
@@ -318,13 +312,18 @@ export default function PriorityMatrix() {
           font-family: "Yu Gothic Medium", "Yu Gothic", -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
           background: var(--paper);
           color: var(--ink);
-          min-height: 100vh;
-          min-height: 100dvh;
+          height: 100vh;
+          height: 100dvh;
+          overflow: hidden;
           display: flex;
           justify-content: center;
           box-sizing: border-box;
         }
-        .pm-shell { width: 100%; max-width: 460px; padding: 18px 14px 90px; box-sizing: border-box; }
+        .pm-shell {
+          width: 100%; max-width: 460px; height: 100%;
+          padding: 18px 14px 90px; box-sizing: border-box;
+          overflow-y: auto; -webkit-overflow-scrolling: touch;
+        }
 
         .pm-form {
           background: var(--paper-raised);
@@ -332,6 +331,7 @@ export default function PriorityMatrix() {
           border-radius: 14px;
           padding: 14px;
           margin-bottom: 16px;
+          position: sticky; top: 0; z-index: 10;
         }
         .pm-input {
           width: 100%;
@@ -423,7 +423,10 @@ export default function PriorityMatrix() {
         .pm-memo-text { flex: 1; font-size: 14px; word-break: break-word; }
         .pm-memo-del { border: none; background: transparent; color: #8B8578; font-size: 17px; padding: 4px; cursor: pointer; flex: none; }
 
-        .pm-hist-head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+        .pm-hist-head {
+          display: flex; justify-content: flex-end; margin-bottom: 8px;
+          position: sticky; top: 0; background: var(--paper); padding: 4px 0; z-index: 10;
+        }
         .pm-hist-clear { border: none; background: transparent; font-size: 12px; color: #8B8578; text-decoration: underline; cursor: pointer; padding: 4px; }
         .pm-hist-item {
           background: var(--paper-raised); border: 1px solid var(--line); border-radius: 12px;
@@ -458,7 +461,8 @@ export default function PriorityMatrix() {
         .pm-memo-dragover-bottom { box-shadow: inset 0 -2px 0 var(--ink); }
         .pm-note-area {
           width: 100%; box-sizing: border-box; display: block;
-          min-height: 55vh; resize: none; overflow: hidden;
+          height: calc(100dvh - 108px); resize: none; overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
           border: 1px solid var(--line); border-radius: 14px;
           background: #FBF9F4; color: var(--ink);
           padding: 14px; font-size: 16px; line-height: 1.7; font-family: inherit;
