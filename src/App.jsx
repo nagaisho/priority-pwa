@@ -252,6 +252,7 @@ export default function PriorityMatrix() {
           background: var(--paper);
           color: var(--ink);
           min-height: 100vh;
+          min-height: 100dvh;
           display: flex;
           justify-content: center;
           box-sizing: border-box;
