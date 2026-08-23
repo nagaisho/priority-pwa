@@ -273,7 +273,7 @@ export default function PriorityMatrix() {
           background: #fff;
           border-radius: 10px;
           padding: 12px;
-          font-size: 15px;
+          font-size: 16px;
           color: var(--ink);
           margin-bottom: 10px;
         }
@@ -388,7 +388,7 @@ export default function PriorityMatrix() {
           min-height: 55vh; resize: none; overflow: hidden;
           border: 1px solid var(--line); border-radius: 14px;
           background: #FBF9F4; color: var(--ink);
-          padding: 14px; font-size: 14px; line-height: 1.7; font-family: inherit;
+          padding: 14px; font-size: 16px; line-height: 1.7; font-family: inherit;
         }
         .pm-note-area:focus { outline: 2px solid #3C6E5C; outline-offset: 1px; }
       `}</style>
