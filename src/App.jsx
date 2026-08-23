@@ -323,6 +323,7 @@ export default function PriorityMatrix() {
           width: 100%; max-width: 460px; height: 100%;
           padding: 18px 14px 90px; box-sizing: border-box;
           overflow-y: auto; -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
         }
 
         .pm-form {
@@ -377,7 +378,7 @@ export default function PriorityMatrix() {
           min-height: 270px; max-height: 400px; display: flex; flex-direction: column; color: var(--ink);
         }
         .pm-card-title { font-size: 12.5px; font-weight: 700; margin: 0 0 8px; }
-        .pm-card-list { flex: 1; overflow-y: auto; }
+        .pm-card-list { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
         .pm-task {
           padding: 10px 2px; border-bottom: 1px solid var(--line);
           touch-action: pan-y; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
@@ -462,7 +463,7 @@ export default function PriorityMatrix() {
         .pm-note-area {
           width: 100%; box-sizing: border-box; display: block;
           height: calc(100dvh - 108px); resize: none; overflow-y: auto;
-          -webkit-overflow-scrolling: touch;
+          -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
           border: 1px solid var(--line); border-radius: 14px;
           background: #FBF9F4; color: var(--ink);
           padding: 14px; font-size: 16px; line-height: 1.7; font-family: inherit;
