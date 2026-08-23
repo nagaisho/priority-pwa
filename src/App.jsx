@@ -321,7 +321,13 @@ export default function PriorityMatrix() {
         }
         .pm-shell {
           width: 100%; max-width: 460px; height: 100%;
-          padding: 18px 14px 90px; box-sizing: border-box;
+          box-sizing: border-box;
+          display: flex; flex-direction: column;
+        }
+        .pm-shell-top { flex: none; padding: 18px 14px 0; box-sizing: border-box; }
+        .pm-shell-scroll {
+          flex: 1; min-height: 0;
+          padding: 0 14px 90px; box-sizing: border-box;
           overflow-y: auto; -webkit-overflow-scrolling: touch;
           overscroll-behavior: contain;
         }
@@ -332,7 +338,6 @@ export default function PriorityMatrix() {
           border-radius: 14px;
           padding: 14px;
           margin-bottom: 16px;
-          position: sticky; top: 0; z-index: 10;
         }
         .pm-input {
           width: 100%;
@@ -424,10 +429,7 @@ export default function PriorityMatrix() {
         .pm-memo-text { flex: 1; font-size: 14px; word-break: break-word; }
         .pm-memo-del { border: none; background: transparent; color: #8B8578; font-size: 17px; padding: 4px; cursor: pointer; flex: none; }
 
-        .pm-hist-head {
-          display: flex; justify-content: flex-end; margin-bottom: 8px;
-          position: sticky; top: 0; background: var(--paper); padding: 4px 0; z-index: 10;
-        }
+        .pm-hist-head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
         .pm-hist-clear { border: none; background: transparent; font-size: 12px; color: #8B8578; text-decoration: underline; cursor: pointer; padding: 4px; }
         .pm-hist-item {
           background: var(--paper-raised); border: 1px solid var(--line); border-radius: 12px;
@@ -461,8 +463,8 @@ export default function PriorityMatrix() {
         .pm-memo-dragover-top { box-shadow: inset 0 2px 0 var(--ink); }
         .pm-memo-dragover-bottom { box-shadow: inset 0 -2px 0 var(--ink); }
         .pm-note-area {
-          width: 100%; box-sizing: border-box; display: block;
-          height: calc(100dvh - 108px); resize: none; overflow-y: auto;
+          width: 100%; height: 100%; box-sizing: border-box; display: block;
+          resize: none; overflow-y: auto;
           -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
           border: 1px solid var(--line); border-radius: 14px;
           background: #FBF9F4; color: var(--ink);
@@ -472,8 +474,8 @@ export default function PriorityMatrix() {
       `}</style>
 
       <div className="pm-shell">
-        {page === 0 && (
-          <>
+        <div className="pm-shell-top">
+          {page === 0 && (
             <form className="pm-form" onSubmit={addTask}>
               <input
                 ref={inputRef}
@@ -502,7 +504,31 @@ export default function PriorityMatrix() {
                 <button className="pm-submit-inline" type="submit">追加</button>
               </div>
             </form>
+          )}
+          {page === 1 && (
+            <form className="pm-form" onSubmit={addMemo}>
+              <div className="pm-form-row">
+                <input
+                  ref={memoInputRef}
+                  className="pm-input pm-input-cream"
+                  placeholder="メモを入力"
+                  value={memoText}
+                  onChange={(e) => setMemoText(e.target.value)}
+                />
+                <button className="pm-submit compact" type="submit">追加</button>
+              </div>
+            </form>
+          )}
+          {page === 3 && history.length > 0 && (
+            <div className="pm-hist-head">
+              <button className="pm-hist-clear" onClick={clearHistory}>すべて削除</button>
+            </div>
+          )}
+        </div>
 
+        <div className="pm-shell-scroll">
+          {page === 0 && (
+            <>
             <div className="pm-grid">
               {QUADRANTS.map((q) => {
                 const list = tasksFor(q);
@@ -535,24 +561,11 @@ export default function PriorityMatrix() {
             </div>
 
             {saveError && <p className="pm-save-note">保存に失敗しました。もう一度お試しください。</p>}
-          </>
-        )}
+            </>
+          )}
 
-        {page === 1 && (
-          <>
-            <form className="pm-form" onSubmit={addMemo}>
-              <div className="pm-form-row">
-                <input
-                  ref={memoInputRef}
-                  className="pm-input pm-input-cream"
-                  placeholder="メモを入力"
-                  value={memoText}
-                  onChange={(e) => setMemoText(e.target.value)}
-                />
-                <button className="pm-submit compact" type="submit">追加</button>
-              </div>
-            </form>
-
+          {page === 1 && (
+            <>
             {memoItems.length === 0 && <p className="pm-empty">メモはまだありません</p>}
             {memoItems.map((m, i) => (
               <div
@@ -603,11 +616,6 @@ export default function PriorityMatrix() {
 
         {page === 3 && (
           <>
-            {history.length > 0 && (
-              <div className="pm-hist-head">
-                <button className="pm-hist-clear" onClick={clearHistory}>すべて削除</button>
-              </div>
-            )}
             {history.length === 0 && <p className="pm-empty">履歴はまだありません</p>}
             {history.map((h) => {
               const q = h.source === "memo" ? null : findQuadrant(h.urgent, h.important);
@@ -629,6 +637,7 @@ export default function PriorityMatrix() {
             })}
           </>
         )}
+        </div>
       </div>
 
       <div className="pm-tabbar">
