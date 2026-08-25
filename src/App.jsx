@@ -38,6 +38,7 @@ export default function PriorityMatrix() {
   const [important, setImportant] = useState(true);
   const [drag, setDrag] = useState(null);
   const quadrantRefs = useRef({});
+  const taskRowRefs = useRef({});
   const inputRef = useRef(null);
   const [menu, setMenu] = useState(null);
   const pressTimer = useRef(null);
@@ -111,10 +112,25 @@ export default function PriorityMatrix() {
     ]);
   }
 
-  function moveTask(id, target) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, urgent: target.urgent, important: target.important } : t))
-    );
+  function moveAndReorderTask(id, target, targetIndex) {
+    setTasks((prev) => {
+      const dragged = prev.find((t) => t.id === id);
+      if (!dragged) return prev;
+      const updated = { ...dragged, urgent: target.urgent, important: target.important };
+      const without = prev.filter((t) => t.id !== id);
+      const siblings = without.filter((t) => t.urgent === target.urgent && t.important === target.important);
+      let insertAt;
+      if (targetIndex >= siblings.length) {
+        insertAt = siblings.length === 0
+          ? without.length
+          : without.findIndex((t) => t.id === siblings[siblings.length - 1].id) + 1;
+      } else {
+        insertAt = without.findIndex((t) => t.id === siblings[targetIndex].id);
+      }
+      const result = without.slice();
+      result.splice(insertAt, 0, updated);
+      return result;
+    });
   }
 
   function quadrantKeyAt(x, y) {
@@ -125,6 +141,19 @@ export default function PriorityMatrix() {
       if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return key;
     }
     return null;
+  }
+
+  function taskIndexInQuadrant(quadrantKey, y, excludeId) {
+    const q = QUADRANTS.find((qq) => qq.key === quadrantKey);
+    if (!q) return 0;
+    const list = tasksFor(q).filter((t) => t.id !== excludeId);
+    for (let i = 0; i < list.length; i++) {
+      const el = taskRowRefs.current[list[i].id];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (y < r.top + r.height / 2) return i;
+    }
+    return list.length;
   }
 
   function handleTaskPointerDown(e, task) {
@@ -171,19 +200,25 @@ export default function PriorityMatrix() {
         info.dragging = true;
         setMenu(null);
         e.preventDefault();
+        const startKey = findQuadrant(info.task.urgent, info.task.important).key;
         setDrag({
           id: info.id,
           text: info.task.text,
           x: e.clientX,
           y: e.clientY,
-          over: findQuadrant(info.task.urgent, info.task.important).key,
+          over: startKey,
+          overIndex: taskIndexInQuadrant(startKey, e.clientY, info.id),
         });
       }
       return;
     }
     e.preventDefault();
     const overKey = quadrantKeyAt(e.clientX, e.clientY);
-    setDrag((d) => (d ? { ...d, x: e.clientX, y: e.clientY, over: overKey || d.over } : d));
+    setDrag((d) => {
+      if (!d) return d;
+      const key = overKey || d.over;
+      return { ...d, x: e.clientX, y: e.clientY, over: key, overIndex: taskIndexInQuadrant(key, e.clientY, info.id) };
+    });
   }
 
   function handleTaskPointerUp(e) {
@@ -198,7 +233,7 @@ export default function PriorityMatrix() {
       e.preventDefault();
       setDrag((d) => {
         const target = d && QUADRANTS.find((q) => q.key === d.over);
-        if (target) moveTask(info.id, target);
+        if (target) moveAndReorderTask(info.id, target, d.overIndex ?? 0);
         return null;
       });
     }
@@ -232,10 +267,6 @@ export default function PriorityMatrix() {
       { id: item.id, text: item.text, source: "memo", completedAt: Date.now() },
       ...prev,
     ]);
-  }
-
-  function removeMemo(id) {
-    setMemoItems((prev) => prev.filter((m) => m.id !== id));
   }
 
   function reorderMemo(dragId, targetIndex) {
@@ -431,7 +462,6 @@ export default function PriorityMatrix() {
           flex: none; cursor: pointer; background: #fff;
         }
         .pm-memo-text { flex: 1; font-size: 14px; word-break: break-word; }
-        .pm-memo-del { border: none; background: transparent; color: #8B8578; font-size: 17px; padding: 4px; cursor: pointer; flex: none; }
 
         .pm-hist-head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
         .pm-hist-clear { border: none; background: transparent; font-size: 12px; color: #8B8578; text-decoration: underline; cursor: pointer; padding: 4px; }
@@ -500,10 +530,18 @@ export default function PriorityMatrix() {
                     <p className="pm-card-title">{q.title}</p>
                     <div className="pm-card-list">
                       {list.length === 0 && <p className="pm-empty">タスクなし</p>}
-                      {list.map((t) => (
+                      {list.map((t, i) => (
                         <div
-                          className={"pm-task" + (drag && drag.id === t.id ? " pm-task-dragging" : "")}
+                          className={
+                            "pm-task" +
+                            (drag && drag.id === t.id ? " pm-task-dragging" : "") +
+                            (drag && drag.over === q.key && drag.overIndex === i ? " pm-memo-dragover-top" : "") +
+                            (drag && drag.over === q.key && drag.overIndex === list.length && i === list.length - 1
+                              ? " pm-memo-dragover-bottom"
+                              : "")
+                          }
                           key={t.id}
+                          ref={(el) => (taskRowRefs.current[t.id] = el)}
                           onPointerDown={(e) => handleTaskPointerDown(e, t)}
                           onPointerMove={handleTaskPointerMove}
                           onPointerUp={handleTaskPointerUp}
@@ -555,7 +593,6 @@ export default function PriorityMatrix() {
                 >
                   ⠿
                 </button>
-                <button className="pm-memo-del" onClick={() => removeMemo(m.id)}>×</button>
               </div>
             ))}
           </>
