@@ -42,6 +42,7 @@ export default function PriorityMatrix() {
   const [menu, setMenu] = useState(null);
   const pressTimer = useRef(null);
   const pressInfo = useRef(null);
+  const shellScrollRef = useRef(null);
 
   const [memoText, setMemoText] = useState("");
   const memoInputRef = useRef(null);
@@ -110,10 +111,6 @@ export default function PriorityMatrix() {
     ]);
   }
 
-  function removeTask(id) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  }
-
   function moveTask(id, target) {
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, urgent: target.urgent, important: target.important } : t))
@@ -146,13 +143,15 @@ export default function PriorityMatrix() {
       if (pressInfo.current !== info) return;
       info.armed = true;
       info.target.style.touchAction = "none";
+      if (shellScrollRef.current) shellScrollRef.current.style.overflow = "hidden";
       try {
         info.target.setPointerCapture(info.pointerId);
       } catch (err) {
         // pointer already released; ignore
       }
       if (navigator.vibrate) navigator.vibrate(10);
-      setMenu({ id: task.id, x: info.startX, y: info.startY });
+      const rect = info.target.getBoundingClientRect();
+      setMenu({ id: task.id, x: rect.left + rect.width / 2, y: rect.top - 8 });
     }, 450);
   }
 
@@ -191,7 +190,10 @@ export default function PriorityMatrix() {
     const info = pressInfo.current;
     clearTimeout(pressTimer.current);
     if (!info) return;
-    if (info.armed) info.target.style.touchAction = "";
+    if (info.armed) {
+      info.target.style.touchAction = "";
+      if (shellScrollRef.current) shellScrollRef.current.style.overflow = "";
+    }
     if (info.dragging) {
       e.preventDefault();
       setDrag((d) => {
@@ -205,7 +207,10 @@ export default function PriorityMatrix() {
 
   function handleTaskPointerCancel() {
     const info = pressInfo.current;
-    if (info && info.armed) info.target.style.touchAction = "";
+    if (info && info.armed) {
+      info.target.style.touchAction = "";
+      if (shellScrollRef.current) shellScrollRef.current.style.overflow = "";
+    }
     clearTimeout(pressTimer.current);
     pressInfo.current = null;
     setDrag(null);
@@ -322,22 +327,22 @@ export default function PriorityMatrix() {
         .pm-shell {
           width: 100%; max-width: 460px; height: 100%;
           box-sizing: border-box;
+          padding-bottom: calc(58px + env(safe-area-inset-bottom));
           display: flex; flex-direction: column;
         }
-        .pm-shell-top { flex: none; padding: 18px 14px 0; box-sizing: border-box; }
         .pm-shell-scroll {
           flex: 1; min-height: 0;
-          padding: 0 14px 90px; box-sizing: border-box;
+          padding: 18px 14px 12px; box-sizing: border-box;
           overflow-y: auto; -webkit-overflow-scrolling: touch;
           overscroll-behavior: contain;
         }
+        .pm-shell-bottom { flex: none; padding: 0 14px; box-sizing: border-box; }
 
         .pm-form {
           background: var(--paper-raised);
           border: 1px solid var(--line);
           border-radius: 14px;
           padding: 14px;
-          margin-bottom: 16px;
         }
         .pm-input {
           width: 100%;
@@ -405,7 +410,6 @@ export default function PriorityMatrix() {
           border: none; background: transparent; color: #F7F4EC; font-size: 13px; font-weight: 600;
           padding: 12px 18px; cursor: pointer; white-space: nowrap;
         }
-        .pm-item-menu button + button { border-left: 1px solid rgba(255,255,255,0.18); }
 
         .pm-card-dragover { outline: 2px dashed var(--ink); outline-offset: -2px; }
         .pm-drag-ghost {
@@ -452,11 +456,12 @@ export default function PriorityMatrix() {
         .pm-tabbar-inner { width: 100%; max-width: 460px; display: flex; gap: 6px; padding: 6px 8px calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box; }
         .pm-tab {
           flex: 1; border: none; background: transparent; border-radius: 12px;
-          padding: 7px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px;
-          font-size: 11px; font-weight: 600; color: #8B8578; cursor: pointer;
+          padding: 11px 4px; display: flex; align-items: center; justify-content: center;
+          color: #8B8578; cursor: pointer;
           transition: background 0.15s, color 0.15s;
         }
-        .pm-tab-icon { font-size: 15px; line-height: 1; }
+        .pm-tab-icon { display: block; }
+        .pm-tab-icon-text { font-size: 20px; line-height: 1; }
         .pm-tab.active { color: var(--paper-raised); background: var(--ink); }
         .pm-tab-minor { flex: 0.6; }
 
@@ -474,59 +479,12 @@ export default function PriorityMatrix() {
       `}</style>
 
       <div className="pm-shell">
-        <div className="pm-shell-top">
-          {page === 0 && (
-            <form className="pm-form" onSubmit={addTask}>
-              <input
-                ref={inputRef}
-                className="pm-input"
-                placeholder="やることを入力"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-              />
-              <div className="pm-toggles">
-                <div
-                  className={"pm-chip" + (urgent ? " on-urgent" : "")}
-                  onClick={() => setUrgent((v) => !v)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  緊急 {urgent ? "✓" : ""}
-                </div>
-                <div
-                  className={"pm-chip" + (important ? " on-important" : "")}
-                  onClick={() => setImportant((v) => !v)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  重要 {important ? "✓" : ""}
-                </div>
-                <button className="pm-submit-inline" type="submit">追加</button>
-              </div>
-            </form>
-          )}
-          {page === 1 && (
-            <form className="pm-form" onSubmit={addMemo}>
-              <div className="pm-form-row">
-                <input
-                  ref={memoInputRef}
-                  className="pm-input pm-input-cream"
-                  placeholder="メモを入力"
-                  value={memoText}
-                  onChange={(e) => setMemoText(e.target.value)}
-                />
-                <button className="pm-submit compact" type="submit">追加</button>
-              </div>
-            </form>
-          )}
+        <div className="pm-shell-scroll" ref={shellScrollRef}>
           {page === 3 && history.length > 0 && (
             <div className="pm-hist-head">
               <button className="pm-hist-clear" onClick={clearHistory}>すべて削除</button>
             </div>
           )}
-        </div>
-
-        <div className="pm-shell-scroll">
           {page === 0 && (
             <>
             <div className="pm-grid">
@@ -638,21 +596,84 @@ export default function PriorityMatrix() {
           </>
         )}
         </div>
+
+        <div className="pm-shell-bottom">
+          {page === 0 && (
+            <form className="pm-form" onSubmit={addTask}>
+              <input
+                ref={inputRef}
+                className="pm-input"
+                placeholder="やることを入力"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
+              />
+              <div className="pm-toggles">
+                <div
+                  className={"pm-chip" + (urgent ? " on-urgent" : "")}
+                  onClick={() => setUrgent((v) => !v)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  緊急 {urgent ? "✓" : ""}
+                </div>
+                <div
+                  className={"pm-chip" + (important ? " on-important" : "")}
+                  onClick={() => setImportant((v) => !v)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  重要 {important ? "✓" : ""}
+                </div>
+                <button className="pm-submit-inline" type="submit">追加</button>
+              </div>
+            </form>
+          )}
+          {page === 1 && (
+            <form className="pm-form" onSubmit={addMemo}>
+              <div className="pm-form-row">
+                <input
+                  ref={memoInputRef}
+                  className="pm-input pm-input-cream"
+                  placeholder="メモを入力"
+                  value={memoText}
+                  onChange={(e) => setMemoText(e.target.value)}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                />
+                <button className="pm-submit compact" type="submit">追加</button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
 
       <div className="pm-tabbar">
         <div className="pm-tabbar-inner">
-          <button className={"pm-tab" + (page === 0 ? " active" : "")} onClick={() => setPage(0)}>
-            <span className="pm-tab-icon">▦</span>整理
+          <button className={"pm-tab" + (page === 0 ? " active" : "")} onClick={() => setPage(0)} aria-label="整理">
+            <svg className="pm-tab-icon" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="8" height="8" rx="2" />
+              <rect x="13" y="3" width="8" height="8" rx="2" />
+              <rect x="3" y="13" width="8" height="8" rx="2" />
+              <rect x="13" y="13" width="8" height="8" rx="2" />
+            </svg>
           </button>
-          <button className={"pm-tab" + (page === 1 ? " active" : "")} onClick={() => setPage(1)}>
-            <span className="pm-tab-icon">☑</span>タスク
+          <button className={"pm-tab" + (page === 1 ? " active" : "")} onClick={() => setPage(1)} aria-label="タスク">
+            <span className="pm-tab-icon pm-tab-icon-text">☑</span>
           </button>
-          <button className={"pm-tab" + (page === 2 ? " active" : "")} onClick={() => setPage(2)}>
-            <span className="pm-tab-icon">✎</span>メモ
+          <button className={"pm-tab" + (page === 2 ? " active" : "")} onClick={() => setPage(2)} aria-label="メモ">
+            <svg className="pm-tab-icon" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="4" y="3" width="16" height="18" rx="2" />
+              <path d="M8 8h8M8 12h8M8 16h5" strokeLinecap="round" />
+            </svg>
           </button>
-          <button className={"pm-tab pm-tab-minor" + (page === 3 ? " active" : "")} onClick={() => setPage(3)}>
-            <span className="pm-tab-icon">↺</span>履歴
+          <button className={"pm-tab pm-tab-minor" + (page === 3 ? " active" : "")} onClick={() => setPage(3)} aria-label="履歴">
+            <span className="pm-tab-icon pm-tab-icon-text">↺</span>
           </button>
         </div>
       </div>
@@ -677,14 +698,6 @@ export default function PriorityMatrix() {
             }}
           >
             履歴へ
-          </button>
-          <button
-            onClick={() => {
-              removeTask(menu.id);
-              setMenu(null);
-            }}
-          >
-            削除
           </button>
         </div>
       )}
