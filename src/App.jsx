@@ -428,6 +428,7 @@ export default function PriorityMatrix() {
         .pm-task-grip {
           border: none; background: transparent; color: #8B8578; padding: 4px;
           cursor: grab; flex: none; font-size: 16px; line-height: 1; touch-action: none;
+          -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
         }
         .pm-task-dragging { opacity: 0.35; }
         .pm-empty { padding: 12px 0; font-size: 12px; color: #8B8578; text-align: center; }
